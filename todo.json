@@ -1,0 +1,71 @@
+{
+  "project": "细菌大战 - Bacteria War",
+  "last_updated": "2026-03-22",
+  "summary": "经典细菌占领即时策略网页游戏，基于 Canvas 2D + Three.js 背景 + Supabase 云存档",
+  "items": [
+    {
+      "id": 1,
+      "category": "适配",
+      "title": "响应式画布 - 自适应窗口大小",
+      "desc": "画布 CSS 设为 100% 宽高，容器用 max-width/max-height 约束，小屏媒体查询已添加",
+      "priority": "high",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "category": "适配",
+      "title": "移动端触控支持",
+      "desc": "touchstart/touchmove/touchend 事件已添加到 battle.js，支持拖拽派兵和双击升级",
+      "priority": "high",
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "category": "功能",
+      "title": "排行榜 UI",
+      "desc": "战斗结算时自动调用 getLeaderboard() 并在结果页展示 Top 10（含排名、用户名、用时、星级）",
+      "priority": "medium",
+      "status": "done"
+    },
+    {
+      "id": 4,
+      "category": "UI",
+      "title": "音效开关 + 游戏速度控制",
+      "desc": "HUD 右侧新增速度切换按钮（1x/1.5x/2x/3x）和静音按钮",
+      "priority": "medium",
+      "status": "done"
+    },
+    {
+      "id": 5,
+      "category": "功能",
+      "title": "暂停功能",
+      "desc": "HUD 暂停按钮 + ESC 键暂停/恢复，暂停覆盖层含 RESUME 和 QUIT 按钮",
+      "priority": "medium",
+      "status": "done"
+    },
+    {
+      "id": 6,
+      "category": "视觉",
+      "title": "占领粒子特效集成",
+      "desc": "Pipeline 占领细胞时调用 spawnParticles()，12 颗粒子以占领方颜色爆发",
+      "priority": "low",
+      "status": "done"
+    },
+    {
+      "id": 7,
+      "category": "UX",
+      "title": "新手引导/教程覆盖层",
+      "desc": "第一关首次进入显示 HOW TO PLAY 教程卡片（拖拽/双击/技能/目标），localStorage 记住已看过",
+      "priority": "low",
+      "status": "done"
+    },
+    {
+      "id": 8,
+      "category": "测试",
+      "title": "核心流程验证",
+      "desc": "本地服务器已启动，代码无 lint 错误，变量作用域已修复",
+      "priority": "high",
+      "status": "done"
+    }
+  ]
+}

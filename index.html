@@ -8,8 +8,10 @@
     <meta property="og:title" content="细菌大战 - Bacteria War">
     <meta property="og:description" content="经典细菌大战策略游戏">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦠</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
+        /* Google Fonts loaded asynchronously via <link> in <head> to avoid blocking offline */
 
         :root {
             --neon: #00ff88;
@@ -40,14 +42,40 @@
 
         #game-container {
             position: relative;
-            width: 1200px;
-            height: 700px;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1200px;
+            max-height: 700px;
             border: 2px solid var(--border);
             overflow: hidden;
             box-shadow: 0 0 60px rgba(0, 255, 136, 0.06);
         }
 
-        canvas { display: block; cursor: crosshair; }
+        @media (max-aspect-ratio: 12/7) {
+            #game-container { max-height: calc(100vw * 7 / 12); }
+        }
+        @media (max-width: 768px) {
+            #game-container { border: none; max-width: 100vw; max-height: 100vh; }
+            .title { font-size: 28px; letter-spacing: 3px; }
+            .subtitle { font-size: 12px; margin-bottom: 20px; }
+            #level-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .level-card { width: 150px; padding: 14px 10px; }
+            .lv-name { font-size: 12px; }
+            .lv-desc { font-size: 11px; }
+            .skill-btn { width: 64px; padding: 6px 4px; }
+            .skill-btn .skill-icon { font-size: 15px; }
+            .skill-btn .skill-name { font-size: 10px; }
+            .auth-box { width: 90vw; max-width: 360px; padding: 24px; }
+        }
+
+        canvas#gameCanvas {
+            display: block;
+            cursor: crosshair;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+        }
 
         /* ====== Level Select ====== */
         #level-screen {
@@ -216,6 +244,113 @@
             font-weight: 700;
         }
 
+        .hud-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .hud-ctrl-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            width: 32px; height: 32px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .hud-ctrl-btn:hover { border-color: var(--neon); color: var(--neon); }
+        .hud-ctrl-btn.active { border-color: var(--neon); color: var(--neon); background: rgba(0,255,136,0.1); }
+        .hud-speed-label {
+            font-family: var(--font-title);
+            font-size: 10px;
+            color: var(--text-dim);
+            min-width: 24px;
+            text-align: center;
+        }
+
+        /* ====== Tutorial Overlay ====== */
+        #tutorial-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(3, 6, 16, 0.88);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 95;
+            padding: 30px;
+        }
+        .tutorial-card {
+            max-width: 460px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            padding: 28px 32px;
+            text-align: center;
+        }
+        .tutorial-card h2 {
+            font-family: var(--font-title);
+            color: var(--neon);
+            font-size: 18px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+        .tutorial-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            margin-bottom: 14px;
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .tutorial-step .t-icon {
+            font-size: 24px;
+            min-width: 36px;
+            text-align: center;
+        }
+        .tutorial-step .t-hl { color: var(--neon); font-weight: 700; }
+        .tutorial-start {
+            margin-top: 18px;
+            padding: 12px 36px;
+            font-family: var(--font-title);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            border: 1px solid var(--neon);
+            background: rgba(0,255,136,0.05);
+            color: var(--neon);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tutorial-start:hover {
+            background: rgba(0,255,136,0.15);
+            box-shadow: 0 0 20px var(--neon-glow);
+        }
+
+        /* ====== Pause Overlay ====== */
+        #pause-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(3, 6, 16, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 90;
+        }
+        #pause-overlay h2 {
+            font-family: var(--font-title);
+            font-size: 32px;
+            color: var(--neon);
+            letter-spacing: 6px;
+            margin-bottom: 24px;
+        }
+        #pause-overlay .result-btn { margin: 6px; }
+
         /* ====== Battle Info ====== */
         #battle-info {
             position: absolute;
@@ -234,6 +369,61 @@
         }
 
         #battle-info .hl { color: var(--neon); font-weight: 700; }
+
+        /* ====== Skill Bar ====== */
+        #skill-bar {
+            position: absolute;
+            bottom: 46px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .skill-btn {
+            width: 80px;
+            padding: 8px 6px;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .skill-btn:hover {
+            background: rgba(0, 255, 136, 0.12);
+            border-color: var(--neon);
+            box-shadow: 0 0 12px var(--neon-glow);
+        }
+
+        .skill-btn.on-cd {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .skill-btn.on-cd:hover {
+            background: rgba(0, 255, 136, 0.05);
+            border-color: var(--border);
+            box-shadow: none;
+        }
+
+        .skill-btn .skill-icon { font-size: 18px; }
+        .skill-btn .skill-name {
+            font-family: var(--font-body);
+            font-size: 11px;
+            color: var(--text);
+            margin-top: 3px;
+        }
+        .skill-btn .skill-cd {
+            font-family: var(--font-title);
+            font-size: 10px;
+            color: var(--red);
+            position: absolute;
+            top: 2px;
+            right: 4px;
+        }
 
         /* ====== Result Screen ====== */
         #battle-result {
@@ -281,6 +471,34 @@
         .result-btn.primary { border-color: var(--neon); color: var(--neon); }
         .result-btn.secondary { border-color: var(--text-dim); color: var(--text-dim); }
         .result-btn.secondary:hover { border-color: var(--neon); color: var(--neon); }
+
+        /* ====== Leaderboard ====== */
+        .leaderboard {
+            margin-top: 16px;
+            width: 320px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .leaderboard h3 {
+            font-family: var(--font-title);
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .lb-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 8px;
+            font-size: 13px;
+            color: var(--text);
+            border-bottom: 1px solid rgba(0,255,136,0.06);
+        }
+        .lb-row:first-of-type { color: var(--neon); font-weight: 700; }
+        .lb-row .lb-rank { width: 28px; color: var(--text-dim); }
+        .lb-row .lb-name { flex: 1; }
+        .lb-row .lb-time { width: 50px; text-align: right; font-family: var(--font-title); font-size: 12px; }
+        .lb-row .lb-stars { width: 60px; text-align: right; }
 
         /* ====== Auth Screen ====== */
         #auth-screen {
@@ -484,21 +702,77 @@
                 <span class="hud-player-name" style="color:var(--red)">敌方细菌</span>
                 <div class="hud-dot" style="background:var(--red)"></div>
             </div>
+            <div class="hud-controls">
+                <button class="hud-ctrl-btn" id="btn-pause" title="暂停">⏸</button>
+                <button class="hud-ctrl-btn" id="btn-speed" title="加速"><span class="hud-speed-label" id="speed-label">1x</span></button>
+                <button class="hud-ctrl-btn" id="btn-mute" title="静音">🔊</button>
+            </div>
+        </div>
+
+        <!-- Skill Bar -->
+        <div id="skill-bar">
+            <div class="skill-btn" id="skill-rush" onclick="battleGame?.useSkill('rush')">
+                <div class="skill-icon">⚔️</div>
+                <div class="skill-name">全军出击</div>
+                <div class="skill-cd"></div>
+            </div>
+            <div class="skill-btn" id="skill-shield" onclick="battleGame?.useSkill('shield')">
+                <div class="skill-icon">🛡️</div>
+                <div class="skill-name">防御护盾</div>
+                <div class="skill-cd"></div>
+            </div>
+            <div class="skill-btn" id="skill-boost" onclick="battleGame?.useSkill('boost')">
+                <div class="skill-icon">⚡</div>
+                <div class="skill-name">加速产兵</div>
+                <div class="skill-cd"></div>
+            </div>
         </div>
 
         <!-- Battle Info -->
         <div id="battle-info">
-            <span>按住<span class="hl">你的绿色细胞</span></span>
-            <span>→</span>
-            <span>拖动到<span class="hl">目标细胞</span>松开 = 派兵入侵</span>
+            <span>拖拽<span class="hl">绿色细胞</span>→目标 = 派兵</span>
             <span>|</span>
-            <span>消灭所有敌方细胞获胜</span>
+            <span>双击细胞 = <span class="hl">升级</span></span>
+            <span>|</span>
+            <span>消灭所有敌方获胜</span>
+        </div>
+
+        <!-- Tutorial Overlay -->
+        <div id="tutorial-overlay">
+            <div class="tutorial-card">
+                <h2>HOW TO PLAY</h2>
+                <div class="tutorial-step">
+                    <span class="t-icon">👆</span>
+                    <span><span class="t-hl">拖拽</span>你的绿色细胞到目标细胞，派遣兵力进攻</span>
+                </div>
+                <div class="tutorial-step">
+                    <span class="t-icon">✌️</span>
+                    <span><span class="t-hl">双击</span>己方细胞消耗兵力升级（提升产兵和上限）</span>
+                </div>
+                <div class="tutorial-step">
+                    <span class="t-icon">⚡</span>
+                    <span>使用底部<span class="t-hl">技能栏</span>释放全军出击、护盾、加速</span>
+                </div>
+                <div class="tutorial-step">
+                    <span class="t-icon">🏆</span>
+                    <span>消灭所有<span class="t-hl">敌方细菌</span>即可获胜！用时越短星级越高</span>
+                </div>
+                <button class="tutorial-start" id="tutorial-close">开 始 战 斗</button>
+            </div>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pause-overlay">
+            <h2>PAUSED</h2>
+            <button class="result-btn primary" id="pause-resume">RESUME</button>
+            <button class="result-btn secondary" id="pause-quit">QUIT</button>
         </div>
 
         <!-- Result -->
         <div id="battle-result">
             <h1 id="battle-result-title"></h1>
             <div class="stats" id="battle-result-stats"></div>
+            <div class="leaderboard" id="leaderboard"></div>
             <div class="result-btns">
                 <button class="result-btn primary" id="battle-next" style="display:none">NEXT</button>
                 <button class="result-btn primary" id="battle-rematch">RETRY</button>
@@ -507,10 +781,12 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="lib/three.min.js"></script>
+    <script src="lib/supabase.min.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/config.js"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/scene3d.js"></script>
     <script src="js/battle.js"></script>
     <script src="js/main.js"></script>
 </body>

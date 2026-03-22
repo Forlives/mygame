@@ -1,14 +1,23 @@
 (function () {
     const canvas = document.getElementById('gameCanvas');
+    const container = document.getElementById('game-container');
     const battleGame = new BattleGame(canvas);
+    window.battleGame = battleGame;
     const levelGrid = document.getElementById('level-grid');
+
+    let scene3d = null;
+    try {
+        if (typeof THREE !== 'undefined') {
+            scene3d = new Scene3D(container);
+        }
+    } catch (e) {
+        console.warn('Three.js not available, running without 3D effects');
+    }
 
     let currentMode = null;
     let lastTime = 0;
     let isLoggedIn = false;
     let authMode = 'login';
-
-    initSupabase();
 
     const authScreen = document.getElementById('auth-screen');
     const authTitle = document.getElementById('auth-title');
@@ -21,7 +30,7 @@
     const authSkip = document.getElementById('auth-skip');
 
     function hideAll() {
-        ['auth-screen', 'level-screen', 'battle-hud', 'battle-info', 'battle-result'].forEach(id => {
+        ['auth-screen', 'level-screen', 'battle-hud', 'battle-info', 'battle-result', 'skill-bar', 'pause-overlay', 'tutorial-overlay'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
@@ -73,14 +82,23 @@
         authError.textContent = '';
 
         let result;
-        if (authMode === 'login') {
-            result = await signIn(username, password);
-        } else {
-            result = await signUp(username, password);
+        try {
+            if (authMode === 'login') {
+                result = await signIn(username, password);
+            } else {
+                result = await signUp(username, password);
+            }
+        } catch (e) {
+            result = { error: { message: '网络错误: ' + (e.message || '请检查网络连接') } };
         }
 
-        if (result.error) {
-            authError.textContent = result.error.message || '操作失败，请重试';
+        if (!result || result.error) {
+            const msg = result?.error?.message || '操作失败，请重试';
+            const friendlyMsg = msg.includes('Invalid login') ? '用户名或密码错误' :
+                                msg.includes('already registered') ? '用户名已被注册' :
+                                msg.includes('Email not confirmed') ? '请先验证邮箱（Supabase后台关闭Confirm email）' :
+                                msg;
+            authError.textContent = friendlyMsg;
             switchAuthMode(authMode);
             authSubmit.disabled = false;
             return;
@@ -152,13 +170,42 @@
         }
     }
 
+    let tutorialShown = false;
+    const pauseOverlay = document.getElementById('pause-overlay');
+    const btnPause = document.getElementById('btn-pause');
+    const btnSpeed = document.getElementById('btn-speed');
+    const speedLabel = document.getElementById('speed-label');
+    const btnMute = document.getElementById('btn-mute');
+    const speedSteps = [1, 1.5, 2, 3];
+    let speedIndex = 0;
+
     function startBattle(levelIndex) {
         hideAll();
         document.getElementById('battle-hud').style.display = 'flex';
         document.getElementById('battle-info').style.display = 'flex';
+        document.getElementById('skill-bar').style.display = 'flex';
         currentMode = 'battle';
-        battleGame.init(levelIndex);
+
+        if (levelIndex === 0 && !tutorialShown && !localStorage.getItem('bacteria_tutorial_done')) {
+            battleGame.init(levelIndex);
+            battleGame.state = 'paused';
+            document.getElementById('tutorial-overlay').style.display = 'flex';
+        } else {
+            battleGame.init(levelIndex);
+        }
+
+        speedIndex = 0;
+        battleGame.gameSpeed = 1;
+        if (speedLabel) speedLabel.textContent = '1x';
+        if (btnPause) btnPause.textContent = '⏸';
     }
+
+    document.getElementById('tutorial-close').addEventListener('click', () => {
+        document.getElementById('tutorial-overlay').style.display = 'none';
+        battleGame.state = 'playing';
+        tutorialShown = true;
+        try { localStorage.setItem('bacteria_tutorial_done', '1'); } catch {}
+    });
 
     const origEndGame = BattleGame.prototype.endGame;
     BattleGame.prototype.endGame = function (result) {
@@ -168,7 +215,26 @@
             saveProgress(this.completedLevels);
             saveScore(this.currentLevel, this.time, stars);
         }
+        showLeaderboard(this.currentLevel);
     };
+
+    async function showLeaderboard(levelIndex) {
+        const el = document.getElementById('leaderboard');
+        if (!el) return;
+        const data = await getLeaderboard(levelIndex);
+        if (!data || data.length === 0) {
+            el.innerHTML = '';
+            return;
+        }
+        el.innerHTML = `<h3>LEADERBOARD</h3>` + data.map((r, i) =>
+            `<div class="lb-row">
+                <span class="lb-rank">${i + 1}</span>
+                <span class="lb-name">${r.username}</span>
+                <span class="lb-time">${r.time_seconds}s</span>
+                <span class="lb-stars">${'⭐'.repeat(r.stars)}</span>
+            </div>`
+        ).join('');
+    }
 
     document.getElementById('battle-back-btn').addEventListener('click', () => {
         battleGame.state = 'idle';
@@ -184,10 +250,50 @@
 
     document.getElementById('battle-menu').addEventListener('click', showLevelSelect);
 
+    function togglePause() {
+        if (battleGame.state === 'playing') {
+            battleGame.state = 'paused';
+            pauseOverlay.style.display = 'flex';
+            btnPause.textContent = '▶';
+        } else if (battleGame.state === 'paused') {
+            battleGame.state = 'playing';
+            pauseOverlay.style.display = 'none';
+            btnPause.textContent = '⏸';
+        }
+    }
+
+    btnPause.addEventListener('click', togglePause);
+
+    document.getElementById('pause-resume').addEventListener('click', () => {
+        battleGame.state = 'playing';
+        pauseOverlay.style.display = 'none';
+        btnPause.textContent = '⏸';
+    });
+
+    document.getElementById('pause-quit').addEventListener('click', () => {
+        battleGame.state = 'idle';
+        pauseOverlay.style.display = 'none';
+        btnPause.textContent = '⏸';
+        showLevelSelect();
+    });
+
+    btnSpeed.addEventListener('click', () => {
+        speedIndex = (speedIndex + 1) % speedSteps.length;
+        battleGame.gameSpeed = speedSteps[speedIndex];
+        speedLabel.textContent = speedSteps[speedIndex] + 'x';
+    });
+
+    btnMute.addEventListener('click', () => {
+        gameAudio.enabled = !gameAudio.enabled;
+        btnMute.textContent = gameAudio.enabled ? '🔊' : '🔇';
+        btnMute.classList.toggle('active', !gameAudio.enabled);
+    });
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && currentMode === 'battle') {
-            battleGame.state = 'idle';
-            showLevelSelect();
+            if (battleGame.state === 'playing' || battleGame.state === 'paused') {
+                togglePause();
+            }
         }
     });
 
@@ -195,51 +301,39 @@
         const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
         lastTime = timestamp;
 
+        if (scene3d) {
+            scene3d.update(dt);
+            scene3d.render();
+        }
+
         if (currentMode === 'battle') {
             battleGame.update(dt);
             battleGame.render();
         } else {
             const ctx = canvas.getContext('2d');
-            const bg = ctx.createRadialGradient(600, 350, 100, 600, 350, 600);
-            bg.addColorStop(0, '#080e14');
-            bg.addColorStop(1, '#030610');
-            ctx.fillStyle = bg;
-            ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
-
-            const t = timestamp / 1000;
-            ctx.strokeStyle = 'rgba(0,255,136,0.02)';
-            ctx.lineWidth = 1;
-            for (let x = 0; x < CONFIG.CANVAS_W; x += 80) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CONFIG.CANVAS_H); ctx.stroke();
-            }
-            for (let y = 0; y < CONFIG.CANVAS_H; y += 80) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CONFIG.CANVAS_W, y); ctx.stroke();
-            }
-
-            for (let i = 0; i < 15; i++) {
-                const angle = (i / 15) * Math.PI * 2 + t * 0.1;
-                const r = 150 + Math.sin(t * 0.3 + i) * 50;
-                const x = 600 + Math.cos(angle) * r;
-                const y = 350 + Math.sin(angle) * r;
-                ctx.beginPath();
-                ctx.arc(x, y, 2 + Math.sin(t + i) * 1, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(0,255,136,${0.04 + Math.sin(t + i * 0.5) * 0.02})`;
-                ctx.fill();
-            }
+            ctx.clearRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
         }
 
         requestAnimationFrame(gameLoop);
     }
 
     (async () => {
-        const session = await getSession();
-        if (session) {
-            isLoggedIn = true;
+        const supabaseAvailable = initSupabase();
+        if (supabaseAvailable) {
+            const session = await getSession();
+            if (session) {
+                isLoggedIn = true;
+                const progress = await loadProgress();
+                battleGame.completedLevels = progress;
+                showLevelSelect();
+            } else {
+                showAuth();
+            }
+        } else {
+            isLoggedIn = false;
             const progress = await loadProgress();
             battleGame.completedLevels = progress;
             showLevelSelect();
-        } else {
-            showAuth();
         }
         requestAnimationFrame(gameLoop);
     })();
