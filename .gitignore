@@ -1,0 +1,6 @@
+.cursor/
+.moyu-message/
+.specstory/
+node_modules/
+.env
+*.log

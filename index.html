@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>细菌大战 - Bacteria War</title>
+    <meta name="description" content="经典细菌大战策略游戏 - 控制你的细菌军团，入侵敌方领地，占领所有细胞获胜！">
+    <meta property="og:title" content="细菌大战 - Bacteria War">
+    <meta property="og:description" content="经典细菌大战策略游戏">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦠</text></svg>">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
+
+        :root {
+            --neon: #00ff88;
+            --neon-dim: #00cc66;
+            --neon-glow: rgba(0, 255, 136, 0.3);
+            --red: #ff3355;
+            --bg: #030610;
+            --panel: rgba(3, 6, 10, 0.94);
+            --border: rgba(0, 255, 136, 0.2);
+            --text: #8ab8a0;
+            --text-dim: #4a7a5a;
+            --font-title: 'Orbitron', 'Consolas', 'Courier New', monospace;
+            --font-body: 'Rajdhani', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: var(--font-body);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 1200px;
+            height: 700px;
+            border: 2px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 0 60px rgba(0, 255, 136, 0.06);
+        }
+
+        canvas { display: block; cursor: crosshair; }
+
+        /* ====== Level Select ====== */
+        #level-screen {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(0, 30, 15, 0.6), var(--bg) 70%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .title {
+            font-family: var(--font-title);
+            font-size: 42px;
+            font-weight: 900;
+            color: var(--neon);
+            text-shadow: 0 0 40px rgba(0, 255, 136, 0.3);
+            margin-bottom: 4px;
+            letter-spacing: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 15px;
+            margin-bottom: 36px;
+            letter-spacing: 4px;
+        }
+
+        #level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            max-width: 600px;
+        }
+
+        .level-card {
+            width: 180px;
+            padding: 18px 14px;
+            background: rgba(0, 255, 136, 0.015);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .level-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon), transparent);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .level-card:hover::before { opacity: 1; }
+
+        .level-card:hover {
+            background: rgba(0, 255, 136, 0.05);
+            border-color: var(--neon);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .level-card.locked {
+            opacity: 0.2;
+            cursor: not-allowed;
+            border-color: #1a2a20;
+        }
+
+        .level-card.locked:hover {
+            transform: none;
+            box-shadow: none;
+            background: rgba(0, 255, 136, 0.015);
+            border-color: #1a2a20;
+        }
+
+        .lv-number {
+            font-family: var(--font-title);
+            color: var(--text-dim);
+            font-size: 10px;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+        }
+
+        .lv-name {
+            font-family: var(--font-title);
+            color: var(--neon);
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .lv-desc {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .lv-stars { font-size: 16px; letter-spacing: 3px; }
+
+        /* ====== Battle HUD ====== */
+        #battle-hud {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 48px;
+            background: var(--panel);
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        .hud-back {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 5px 14px;
+            cursor: pointer;
+            font-family: var(--font-title);
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .hud-back:hover { border-color: var(--neon); color: var(--neon); }
+
+        .hud-player {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+        }
+
+        .hud-player-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .hud-player-count {
+            font-family: var(--font-title);
+            font-size: 15px;
+            font-weight: 700;
+            min-width: 60px;
+        }
+
+        .hud-center {
+            color: var(--text-dim);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .hud-center-big {
+            font-family: var(--font-title);
+            font-size: 14px;
+            color: var(--neon);
+            font-weight: 700;
+        }
+
+        /* ====== Battle Info ====== */
+        #battle-info {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40px;
+            background: var(--panel);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 0 20px;
+            border-top: 1px solid var(--border);
+            z-index: 10;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        #battle-info .hl { color: var(--neon); font-weight: 700; }
+
+        /* ====== Result Screen ====== */
+        #battle-result {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        #battle-result h1 {
+            font-family: var(--font-title);
+            font-size: 38px;
+            font-weight: 900;
+            text-shadow: 0 0 30px currentColor;
+            margin-bottom: 16px;
+            letter-spacing: 6px;
+        }
+
+        #battle-result .stats {
+            color: var(--text);
+            font-size: 15px;
+            margin-bottom: 28px;
+            text-align: center;
+            line-height: 2.2;
+        }
+
+        .result-btns { display: flex; gap: 14px; }
+
+        .result-btn {
+            padding: 12px 28px;
+            font-family: var(--font-title);
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+            background: none;
+        }
+
+        .result-btn:hover { box-shadow: 0 0 20px var(--neon-glow); transform: translateY(-2px); }
+        .result-btn.primary { border-color: var(--neon); color: var(--neon); }
+        .result-btn.secondary { border-color: var(--text-dim); color: var(--text-dim); }
+        .result-btn.secondary:hover { border-color: var(--neon); color: var(--neon); }
+
+        /* ====== Auth Screen ====== */
+        #auth-screen {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(0, 30, 15, 0.6), var(--bg) 70%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .auth-box {
+            width: 360px;
+            border: 1px solid var(--border);
+            padding: 32px;
+            background: rgba(3, 6, 10, 0.95);
+        }
+
+        .auth-box h2 {
+            font-family: var(--font-title);
+            color: var(--neon);
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+            letter-spacing: 3px;
+        }
+
+        .auth-field {
+            margin-bottom: 14px;
+        }
+
+        .auth-field label {
+            display: block;
+            color: var(--text-dim);
+            font-size: 12px;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .auth-field input {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(0, 255, 136, 0.03);
+            border: 1px solid var(--border);
+            color: var(--neon);
+            font-family: var(--font-body);
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-field input:focus {
+            border-color: var(--neon);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: var(--font-title);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            border: 1px solid var(--neon);
+            background: rgba(0, 255, 136, 0.05);
+            color: var(--neon);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .auth-btn:hover {
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 0 20px var(--neon-glow);
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 16px;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .auth-toggle a {
+            color: var(--neon);
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .auth-toggle a:hover { text-decoration: underline; }
+
+        .auth-skip {
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        .auth-skip a {
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+        }
+
+        .auth-skip a:hover { color: var(--neon); }
+
+        .auth-error {
+            color: var(--red);
+            font-size: 12px;
+            text-align: center;
+            margin-top: 8px;
+            min-height: 18px;
+        }
+
+        /* ====== User Bar ====== */
+        .user-bar {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 101;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .user-bar .username {
+            color: var(--neon);
+            font-family: var(--font-title);
+            font-size: 11px;
+        }
+
+        .user-bar button {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .user-bar button:hover { border-color: var(--neon); color: var(--neon); }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="1200" height="700"></canvas>
+
+        <!-- Auth Screen -->
+        <div id="auth-screen">
+            <div class="title" style="margin-bottom:4px">BACTERIA WAR</div>
+            <div class="subtitle" style="margin-bottom:28px">细 菌 大 战</div>
+            <div class="auth-box" id="auth-box">
+                <h2 id="auth-title">LOGIN</h2>
+                <div class="auth-field">
+                    <label>用户名</label>
+                    <input type="text" id="auth-username" placeholder="输入用户名" autocomplete="username">
+                </div>
+                <div class="auth-field">
+                    <label>密码</label>
+                    <input type="password" id="auth-password" placeholder="输入密码" autocomplete="current-password">
+                </div>
+                <button class="auth-btn" id="auth-submit">登 录</button>
+                <div class="auth-error" id="auth-error"></div>
+                <div class="auth-toggle">
+                    <span id="auth-toggle-text">没有账号？</span>
+                    <a id="auth-toggle-link">注册</a>
+                </div>
+                <div class="auth-skip">
+                    <a id="auth-skip">跳过登录，直接游戏</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Select -->
+        <div id="level-screen" style="display:none">
+            <div class="title">BACTERIA WAR</div>
+            <div class="subtitle">细 菌 大 战</div>
+            <div id="user-bar-container"></div>
+            <div id="level-grid"></div>
+        </div>
+
+        <!-- Battle HUD -->
+        <div id="battle-hud">
+            <button class="hud-back" id="battle-back-btn">EXIT</button>
+            <div class="hud-player">
+                <div class="hud-dot" style="background:var(--neon)"></div>
+                <span class="hud-player-name" style="color:var(--neon)">你的细菌</span>
+                <span class="hud-player-count" style="color:var(--neon)" id="bp-green-count">2</span>
+            </div>
+            <div class="hud-center">
+                <div class="hud-center-big" id="battle-turn-label">0s</div>
+                <div id="battle-turn-count">0 空细胞</div>
+            </div>
+            <div class="hud-player">
+                <span class="hud-player-count" style="color:var(--red)" id="bp-red-count">2</span>
+                <span class="hud-player-name" style="color:var(--red)">敌方细菌</span>
+                <div class="hud-dot" style="background:var(--red)"></div>
+            </div>
+        </div>
+
+        <!-- Battle Info -->
+        <div id="battle-info">
+            <span>按住<span class="hl">你的绿色细胞</span></span>
+            <span>→</span>
+            <span>拖动到<span class="hl">目标细胞</span>松开 = 派兵入侵</span>
+            <span>|</span>
+            <span>消灭所有敌方细胞获胜</span>
+        </div>
+
+        <!-- Result -->
+        <div id="battle-result">
+            <h1 id="battle-result-title"></h1>
+            <div class="stats" id="battle-result-stats"></div>
+            <div class="result-btns">
+                <button class="result-btn primary" id="battle-next" style="display:none">NEXT</button>
+                <button class="result-btn primary" id="battle-rematch">RETRY</button>
+                <button class="result-btn secondary" id="battle-menu">MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/battle.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
